@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  timescaledb:
+    image: timescale/timescaledb-ha:pg15-amd64
+    # Note: use image timescaledb:latest-pg15 if you want Timescale without extensions
+    container_name: timescaledb
+    restart: unless-stopped
+    networks: [ 'timescale-network' ]
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TIMESCALEDB_TELEMETRY: off
+      # Force default database to prevent fallback to using "POSTGRES_USER" value
+      PGDATABASE: ${POSTGRES_DB}
+    volumes:
+      - ./timescaledb_data:/home/postgres/pgdata/data
+      - ./timescaledb_initdb:/docker-entrypoint-initdb.d
+    depends_on:
+      - data-folders-init
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  post-init-loader:
+    image: docker:cli
+    container_name: post-init-loader
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+    depends_on:
+      - timescaledb
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./energy_data:/energy_data
+    entrypoint: [ "/bin/sh", "/energy_data/load_data_after_initDB.sh" ]
+    networks: [ 'timescale-network' ]
+
+  data-folders-init:
+    image: alpine:3.19
+    container_name: data-folders-init
+    networks: [ 'timescale-network' ]
+    command: >
+      sh -c "
+        echo '### Creating local folders...';
+
+        # TimescaleDB container runner with UID 1000 (postgres)
+        mkdir -p /timescaledb_data;
+        chmod 700 /timescaledb_data;
+        chown 1000:1000 /timescaledb_data;
+
+        # Grafana container runner with UID 472 
+        mkdir -p /grafana_data;
+        chmod 755 /grafana_data;
+        chown 472:472 /grafana_data;
+
+        echo '### Folder initialization complete.';
+      "
+    volumes:
+      - ./grafana_data:/grafana_data
+      - ./timescaledb_data:/timescaledb_data
+    restart: "no"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    networks: [ 'timescale-network' ]
+    depends_on:
+      - timescaledb
+      - data-folders-init
+    ports:
+      - "3003:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+      # The PG variable are required for the provisioning of datasources
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./grafana_data:/var/lib/grafana
+      - ./grafana_provisioning:/etc/grafana/provisioning
+
+networks:
+  timescale-network:
+    name: timescale-network
+    driver: bridge
