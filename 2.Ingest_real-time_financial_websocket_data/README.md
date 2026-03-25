@@ -1,8 +1,11 @@
-# Timescale project: Ingest real-time financial websocket data
+# Project 2: Real-time financial data ingestion via a websocket
 
 ## Overview
 
+A websocket is an open-ended connection to a data source.  
+It is very useful for real-time data ingestion and avoid large data overhead to establish the connection to a data store.   
 
+This project automates the setup and deployment of TimescaleDB, grafana and the data ingestion micro-service using a websocket to Twelve-data.  
 
 ## Prerequisites
 
@@ -37,7 +40,6 @@ The python file *websocket_test.py* shows how to establish a websocket connectio
 The TDClient function from the twelvedata library is used and requires 2 args:
 - an on_event function to ingest data
 - symbols (for the desired stock market share)
-
 
 ### Batching in memory
 

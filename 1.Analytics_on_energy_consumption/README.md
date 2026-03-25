@@ -1,4 +1,8 @@
-# Tutorial 1. 
+# Project 1: Analytics on energy consumption 
+
+The main focus of this project is to setup Timescale DB and introduce hypertables and continuous aggregation through materialized views.  
+
+Grafana is provisioned to view the results.
 
 
 ## Getting started
