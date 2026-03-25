@@ -11,6 +11,7 @@ This repo showcasts a few projects using Timescale DB features such as:
 
 Below are the projects committed so far to this repo:
 1. Analytics on energy consumption
+2. Real-time financial data ingestion and monitoring
 
 
 
