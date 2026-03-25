@@ -314,7 +314,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "TimeSeries",
+  "title": "Real-time financial data ingestion",
   "uid": "gfjwbfd",
   "version": 3,
   "weekStart": ""
