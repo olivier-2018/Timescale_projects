@@ -1,13 +1,12 @@
 apiVersion: 1
 
 providers:
-  - name: 'financial data in real-time'
+  - name: 'aggregated energy consumption'
     orgId: 1
     folder: 'Provisioned Dashboards'
     type: file
     disableDeletion: false
     editable: true
-    updateIntervalSeconds: 0
-    allowUiUpdates: true
+    updateIntervalSeconds: 5
     options:
       path: /etc/grafana/provisioning/dashboards

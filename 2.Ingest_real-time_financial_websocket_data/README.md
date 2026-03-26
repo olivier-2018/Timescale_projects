@@ -69,6 +69,50 @@ Data ingestion can be monitored using the  **batching_ingestion.py** script logs
 docker logs batching-ingestion -f  
 ```
 
+## Continuous aggregates with Timescale DB
+
+### Continuous aggregate
+To create a continuous aggregate that automatically builds 1‑hour candlesticks (open, high, low, close, volume) from the stocks_real_time table, use:
+```sql
+CREATE MATERIALIZED VIEW one_hour_candle
+WITH (timescaledb.continuous) AS
+    SELECT
+        time_bucket('1 hour', time) AS bucket,
+        symbol,
+        FIRST(price, time) AS "open",
+        MAX(price) AS high,
+        MIN(price) AS low,
+        LAST(price, time) AS "close",
+        LAST(day_volume, time) AS day_volume
+    FROM stocks_real_time
+    GROUP BY bucket, symbol;
+```
+- This groups all raw ticks into 1‑hour windows. Each bucket becomes one candlestick.  
+Example:     14:00–14:59 → bucket = 14:00
+- GROUP BY bucket, symbol →  one row per hour per symbol.
+- The ```WITH (timescaledb.continuous)``` clause tells TimescaleDB to incrementally maintain the materialized view as new data arrives — no need to refresh manually.
+
+### Refresh policy
+
+Recent data may still be arriving late or out of order...   
+A refresh policy will ensure: 
+    - the last hour (still incomplete) is not refreshed
+    - the previous 2 hours are refreshed to capture late ticks
+    - older data is considered final and not touched
+
+To set up an automatic refresh schedule, use:
+```sql
+SELECT add_continuous_aggregate_policy('one_hour_candle',
+    start_offset => INTERVAL '3 hours',
+    end_offset => INTERVAL '1 hour',
+    schedule_interval => INTERVAL '1 hour');
+```
+This implements:
+- schedule_interval: '1 hour' => TimescaleDB refreshes the aggregate every hour.
+- start_offset: '3 hours' => Refreshes data from 3 hours ago up to the *end_offset*
+- end_offset: '1 hour' => 1 hour ago.
+
+
 ## Setup grafana
 
 ### Create data source to Timescale

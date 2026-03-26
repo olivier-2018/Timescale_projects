@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   timescaledb:
     image: timescale/timescaledb-ha:pg15-amd64
@@ -25,6 +27,20 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  post-init-loader:
+    image: docker:cli
+    container_name: post-init-loader
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+    depends_on:
+      - timescaledb
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./energy_data:/energy_data
+    entrypoint: [ "/bin/sh", "/energy_data/load_data_after_initDB.sh" ]
+    networks: [ 'timescale-network' ]
 
   data-folders-init:
     image: alpine:3.19
@@ -65,7 +81,6 @@ services:
       GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER}
       GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
       GF_PATHS_PROVISIONING: /etc/grafana/provisioning
-      GF_DATASOURCES_CONFIG_PERSISTENCE_ENABLED: "true"
       # The PG variable are required for the provisioning of datasources
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -73,22 +88,6 @@ services:
     volumes:
       - ./grafana_data:/var/lib/grafana
       - ./grafana_provisioning:/etc/grafana/provisioning
-
-  batching-ingestion:
-    build: .
-    image: batching-ingestion
-    container_name: batching-ingestion
-    restart: unless-stopped
-    networks: [ 'timescale-network' ]
-    depends_on:
-      timescaledb:
-        condition: service_healthy
-    environment:
-      POSTGRES_HOST: "timescaledb"
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      TWELVEDATA_API_KEY: ${TWELVEDATA_API_KEY}
 
 networks:
   timescale-network:

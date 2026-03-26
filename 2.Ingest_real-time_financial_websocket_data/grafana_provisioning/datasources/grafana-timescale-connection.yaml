@@ -3,11 +3,12 @@ apiVersion: 1
 datasources:
   - name: TimescaleDB
     type: postgres
-    access: proxy    
+    access: proxy
+    uid: timescaledb-uid
     editable: true
     isDefault: true
 
-    url: timescaledb
+    url: timescaledb:5432
     database: ${POSTGRES_DB}
     user: ${POSTGRES_USER}
 
@@ -15,6 +16,8 @@ datasources:
       password: ${POSTGRES_PASSWORD}
 
     jsonData:
-      sslmode: disable
+      sslmode: "disable"
       postgresVersion: 1500
       timescaledb: true
+      tlsAuth: false
+      tlsAuthWithCACert: false

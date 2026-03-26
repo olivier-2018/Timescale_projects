@@ -23,7 +23,7 @@
     {
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "timescaledb-uid"
+        "uid": "P40AE60E18F02DE32"
       },
       "fieldConfig": {
         "defaults": {
@@ -103,7 +103,7 @@
           "dataset": "timescaledb",
           "datasource": {
             "type": "grafana-postgresql-datasource",
-            "uid": "timescaledb-uid"
+            "uid": "P40AE60E18F02DE32"
           },
           "editorMode": "code",
           "format": "table",
