@@ -116,7 +116,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT * FROM one_hour_candle\r\nWHERE Symbol = 'BTC/USD' AND bucket >= NOW() - INTERVAL '14 days'\r\nORDER BY bucket;",
+          "rawSql": "SELECT * FROM one_hour_candle\r\nWHERE Symbol = 'BTC/USD' \r\nORDER BY bucket;",
           "refId": "A",
           "sql": {
             "columns": [

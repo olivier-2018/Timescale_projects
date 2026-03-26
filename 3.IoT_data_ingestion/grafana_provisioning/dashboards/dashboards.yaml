@@ -7,6 +7,6 @@ providers:
     type: file
     disableDeletion: false
     editable: true
-    updateIntervalSeconds: 5
+    updateIntervalSeconds: 0
     options:
       path: /etc/grafana/provisioning/dashboards

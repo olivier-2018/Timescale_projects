@@ -1,62 +1,81 @@
--- Create a continuous aggregate for energy consumption by DAY:
-CREATE MATERIALIZED VIEW kwh_day_by_day(time, value)
-   with (timescaledb.continuous) as
-SELECT time_bucket('1 day', created, 'Europe/Berlin') AS "time",
-       round((last(value, created) - first(value, created)) * 100.) / 100. AS value
-FROM metrics
-WHERE type_id = 5
-GROUP BY 1;
+-- Enable continuous aggregates for sensor temperature monitoring
+-- Drop existing views if they exist
+DROP MATERIALIZED VIEW IF EXISTS sensor_temp_1h CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS sensor_temp_30min CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS sensor_temp_10min CASCADE;
 
--- Add refresh policy
-SELECT add_continuous_aggregate_policy('kwh_day_by_day',
-   start_offset => NULL,
-   end_offset => INTERVAL '1 hour',
-   schedule_interval => INTERVAL '1 hour');
+-- 10-minute temperature aggregates
+CREATE MATERIALIZED VIEW sensor_temp_10min
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('10 minutes', time) AS bucket_time,
+  sensor_id,
+  COUNT(*) as reading_count,
+  AVG(temperature) as avg_temperature,
+  MIN(temperature) as min_temperature,
+  MAX(temperature) as max_temperature,
+  STDDEV(temperature) as stddev_temperature
+FROM sensor_data
+WHERE temperature IS NOT NULL
+GROUP BY 1, 2
+WITH DATA;
 
+-- Add continuous aggregate policy for 10-minute view
+SELECT add_continuous_aggregate_policy('sensor_temp_10min',
+  start_offset => INTERVAL '3 hours',
+  end_offset => INTERVAL '10 minutes',
+  schedule_interval => INTERVAL '5 minutes');
 
+-- 30-minute temperature aggregates
+CREATE MATERIALIZED VIEW sensor_temp_30min
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('30 minutes', time) AS bucket_time,
+  sensor_id,
+  COUNT(*) as reading_count,
+  AVG(temperature) as avg_temperature,
+  MIN(temperature) as min_temperature,
+  MAX(temperature) as max_temperature,
+  STDDEV(temperature) as stddev_temperature
+FROM sensor_data
+WHERE temperature IS NOT NULL
+GROUP BY 1, 2
+WITH DATA;
 
+-- Add continuous aggregate policy for 30-minute view
+SELECT add_continuous_aggregate_policy('sensor_temp_30min',
+  start_offset => INTERVAL '12 hours',
+  end_offset => INTERVAL '30 minutes',
+  schedule_interval => INTERVAL '15 minutes');
 
--- Create a continuous aggregate for energy consumption by HOUR
-CREATE MATERIALIZED VIEW kwh_hour_by_hour(time, value)
-  with (timescaledb.continuous) as
-SELECT time_bucket('01:00:00', metrics.created, 'Europe/Berlin') AS "time",
-       round((last(value, created) - first(value, created)) * 100.) / 100. AS value
-FROM metrics
-WHERE type_id = 5
-GROUP BY 1;
+-- 1-hour temperature aggregates
+CREATE MATERIALIZED VIEW sensor_temp_1h
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('1 hour', time) AS bucket_time,
+  sensor_id,
+  COUNT(*) as reading_count,
+  AVG(temperature) as avg_temperature,
+  MIN(temperature) as min_temperature,
+  MAX(temperature) as max_temperature,
+  STDDEV(temperature) as stddev_temperature
+FROM sensor_data
+WHERE temperature IS NOT NULL
+GROUP BY 1, 2
+WITH DATA;
 
--- Add refresh policy
-SELECT add_continuous_aggregate_policy('kwh_hour_by_hour',
- start_offset => NULL,
-    end_offset => INTERVAL '1 hour',
-    schedule_interval => INTERVAL '1 hour');
+-- Add continuous aggregate policy for 1-hour view
+SELECT add_continuous_aggregate_policy('sensor_temp_1h',
+  start_offset => INTERVAL '2 days',
+  end_offset => INTERVAL '1 hour',
+  schedule_interval => INTERVAL '30 minutes');
 
+-- Create indexes for better query performance
+CREATE INDEX idx_sensor_temp_10min_sensor_time 
+  ON sensor_temp_10min (sensor_id, bucket_time DESC);
 
+CREATE INDEX idx_sensor_temp_30min_sensor_time 
+  ON sensor_temp_30min (sensor_id, bucket_time DESC);
 
---- Main Analysis query
--- WITH per_day AS (
---    SELECT
---      time,
---      value
---    FROM kwh_day_by_day
---    WHERE "time" at time zone 'Europe/Berlin' > date_trunc('month', time) - interval '1 year'
---    ORDER BY 1
---   ), daily AS (
---       SELECT
---          to_char(time, 'Dy') as day,
---          value
---       FROM per_day
---   ), percentile AS (
---       SELECT
---           day,
---           approx_percentile(0.50, percentile_agg(value)) as value
---       FROM daily
---       GROUP BY 1
---       ORDER BY 1
---   )
---   SELECT
---       d.day,
---       d.ordinal,
---       pd.value
---   FROM unnest(array['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']) WITH ORDINALITY AS d(day, ordinal)
---   LEFT JOIN percentile pd ON lower(pd.day) = lower(d.day);
+CREATE INDEX idx_sensor_temp_1h_sensor_time 
+  ON sensor_temp_1h (sensor_id, bucket_time DESC);
